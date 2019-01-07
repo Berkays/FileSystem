@@ -1,14 +1,9 @@
-import shutil
-import socket
 import os.path
 from pathlib import Path
 
 import hashlib
 import rpyc
 import pickle
-
-CONTROL_DATA = "/home/berkay/backup.dat"
-
 
 class Node():
     def __init__(self, address, port):
@@ -29,9 +24,9 @@ class Node():
 
         if(status):
             self.active = True
-            print(f"Connection succesful on {self.address}")
+            print(f"Connection succesful on {self.address}\n")
         else:
-            print(f"Connection failed on {self.address}")
+            print(f"Connection failed on {self.address}\n")
             self.active = False
 
     def getConnection(self):
@@ -58,7 +53,8 @@ class File(object):
         self.rpath = hashlib.md5(virtualPath.encode()).hexdigest()
 
 class Controller(object):
-    def __init__(self):
+    def __init__(self,control_dir):
+        self.control_dir = control_dir
         self.nodes = {}
         self.nextServer = None
         
@@ -66,8 +62,6 @@ class Controller(object):
         self.files = {}
         
         self.load_commit()
-        for i in self.directories:
-            print(i)
 
         self.recordDirectory("/") # Root directory
 
@@ -173,6 +167,7 @@ class Controller(object):
             print("No eligible hosts found for migration.")
             return
         
+        print(f"Migrating from {host} to  {newHost}")
         # Send new host ip
         self.nodes[host].getConnection().root.migrate(newHost)
         
@@ -187,14 +182,14 @@ class Controller(object):
 
     # Load file hiearchy from backup
     def load_commit(self):
-        if(os.path.isfile(CONTROL_DATA) == False):
+        if(os.path.isfile(self.control_dir) == False):
             return
-        data_file = open(CONTROL_DATA,mode='rb')
+        data_file = open(self.control_dir,mode='rb')
         (self.directories,self.files) = pickle.load(data_file)
         data_file.close()
 
     # Save file hiearchy
     def commit(self):
-        data_file = open(CONTROL_DATA,mode='wb')
+        data_file = open(self.control_dir, mode='wb')
         pickle.dump((self.directories,self.files),data_file)
         data_file.close()

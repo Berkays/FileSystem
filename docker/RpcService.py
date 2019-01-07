@@ -25,7 +25,6 @@ class RpcService(rpyc.Service):
         return path
 
     def readdir(self, path, fh):
-        #print("FileSystem method: readdir\n")
         path = str(Path(ROOT_DIR))
 
         for r in os.listdir(path):
@@ -39,49 +38,48 @@ class RpcService(rpyc.Service):
                      'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
 
     def unlink(self, path):  # File remove
-        print("FileSystem method: unlink\n")
+        print(f"Remove: {path}\n")
         return os.unlink(self._full_path(path))
 
     # File methods
     # ============
 
     def open(self, path, flags):
-        print("File method: open\n")
+        print(f"Open: {path}\n")
         full_path = self._full_path(path)
         return os.open(full_path, flags)
 
     def create(self, path, mode, fi=None):
-        print("File method: create\n")
+        print(f"Create: {path}\n")
         full_path = self._full_path(path)
-        print("Creating file : ",path)
         return os.open(full_path, os.O_WRONLY | os.O_CREAT, mode)
 
     def read(self, path, length, offset, fh):
-        print("File method: read\n")
+        print(f"Read: {path}\n")
         os.lseek(fh, offset, os.SEEK_SET)
         return os.read(fh, length)
 
     def write(self, path, buf, offset, fh):
-        print("File method: write\n")
+        print(f"Write: {path}\n")
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
 
     def truncate(self, path, length, fh=None):
-        print("File method: truncate\n")
+        print(f"Truncate: {path}\n")
         full_path = self._full_path(path)
         with open(full_path, 'r+') as f:
             f.truncate(length)
 
     def flush(self, path, fh):
-        print("File method: flush\n")
+        print(f"Flush: {path}\n")
         return os.fsync(fh)
 
     def release(self, path, fh):
-        print("File method: release\n")
+        print(f"Release: {path}\n")
         return os.close(fh)
 
     def fsync(self, path, fdatasync, fh):
-        print("File method: fsync\n")
+        print(f"Fsync: {path}\n")
         return self.flush(path, fh)
 
     def migrate(self,toHost):
@@ -112,5 +110,6 @@ class RpcService(rpyc.Service):
         print("Migration complete...")
 
     def shutdown(self):
+        print("Shuttind down...")
         self.active = False
         exit(0)

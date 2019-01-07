@@ -10,7 +10,6 @@ from pathlib import Path
 
 ROOT_DIR = "/server/data_store/"
 
-
 class RpcService(rpyc.Service):
     active = True
 
@@ -41,7 +40,6 @@ class RpcService(rpyc.Service):
 
     def unlink(self, path):  # File remove
         print("FileSystem method: unlink\n")
-        print(path)
         return os.unlink(self._full_path(path))
 
     # File methods
@@ -86,46 +84,33 @@ class RpcService(rpyc.Service):
         print("File method: fsync\n")
         return self.flush(path, fh)
 
-    def migrate(self, newHost):
-        # Transfer all files to newHost
-        zipFile = "backup"
-        dirPath = str(Path(ROOT_DIR))
+    def migrate(self,toHost):
+        zipFile = "/server/data_store/backup"
         print("Packing migration data...")
-        shutil.make_archive(zipFile, 'zip', dirPath)  # Zip server files
+        shutil.make_archive(zipFile, 'zip', ROOT_DIR)  # Zip server files
 
-        server_socket = socket.socket()
-        server_socket.bind((newHost, 19000))
-        server_socket.listen(5)
-        client_socket, addr = server_socket.accept()
         print("Sending migration data...")
         with open(zipFile + ".zip", 'rb') as f:
-            client_socket.sendfile(f, 0)
-        client_socket.close()
-        
-        # TODO: Remove zip
+            data = f.read()
+            rpyc.connect(host=toHost,port=18861).root.acceptMigrate(data)
+
+        os.remove(self._full_path("backup.zip"))
         print("Migration complete...")
 
-        self.active = False
+    def acceptMigrate(self,data):
+        zipFile = "/server/data_store/backup.zip"
 
-    def acceptMigrate(self,fromHost):
-        CHUNK_SIZE = 8 * 1024
-        zipFile = self._full_path("backup.zip")
-
-        sock = socket.socket()
-        sock.connect((fromHost, 19000))
         print("Receiving migration data...")
-        with open(zipFile,'wb') as f:
-
-            chunk = sock.recv(CHUNK_SIZE)
-            f.write(chunk)
-            while chunk:
-                chunk = sock.recv(CHUNK_SIZE)
-                if(chunk):
-                    f.write(chunk)
-        sock.close()
+        f = open(zipFile,'wb')
+        f.write(data)
+        f.close()
 
         print("Unpacking migration data...")
         shutil.unpack_archive(zipFile, extract_dir=ROOT_DIR)
 
-        # TODO: Remove zip
+        os.remove(self._full_path("backup.zip"))
         print("Migration complete...")
+
+    def shutdown(self):
+        self.active = False
+        exit(0)

@@ -1,3 +1,5 @@
+import shutil
+import socket
 import os.path
 from pathlib import Path
 
@@ -6,6 +8,7 @@ import rpyc
 import pickle
 
 CONTROL_DATA = "/home/berkay/backup.dat"
+
 
 class Node():
     def __init__(self, address, port):
@@ -19,8 +22,8 @@ class Node():
         status = True  # Get server status
         try:
             print(f"Testing connection on {self.address}")
-            conn = rpyc.connect(host=self.address, port=self.port)
-            status = conn.root.connection_test()
+            self.conn = rpyc.connect(host=self.address, port=self.port)
+            status = self.conn.root.connection_test()
         except:
             status = False
 
@@ -32,7 +35,12 @@ class Node():
             self.active = False
 
     def getConnection(self):
-        return rpyc.connect(host=self.address, port=self.port)
+        #return rpyc.connect(host=self.address, port=self.port)
+        return self.conn
+
+    def shutdown(self):
+        self.active = False
+        self.conn.close()
 
 class Directory(object):
     def __init__(self,name):
@@ -164,11 +172,18 @@ class Controller(object):
         if(newHost == host):
             print("No eligible hosts found for migration.")
             return
-
+        
         # Send new host ip
-        self.getNode(host).getConnection().root.migrate(newHost)
-        self.getNode(newHost).getConnection().root.acceptMigrate(host)
-        self.getNode(host).active = False
+        self.nodes[host].getConnection().root.migrate(newHost)
+        
+        for f in self.files:
+            fileRecord = self.files[f]
+            if(fileRecord.nodeAddress == host):
+                fileRecord.nodeAddress = newHost
+                
+        self.nodes[host].shutdown()
+        del self.nodes[host]
+        print("Migration completed")
 
     # Load file hiearchy from backup
     def load_commit(self):

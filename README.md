@@ -4,9 +4,9 @@ docker build -t server .
 
 ## Docker Run
 
-Change port 10001 for each node
+Change port x for each node
 
-docker run -p 10001:18861 server
+docker run -p x:18861 server
 
 ## Run Client
 

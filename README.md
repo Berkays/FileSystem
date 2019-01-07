@@ -3,6 +3,7 @@
 * Docker
 * Python >=3.4
 * Rpyc package (pip install rpyc)
+* Fusepy package (pip install fusepy)
 
 # Docker Installation
 

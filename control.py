@@ -7,7 +7,6 @@ import pickle
 
 CONTROL_DATA = "/home/berkay/backup.dat"
 
-
 class Node():
     def __init__(self, address, port):
         self.address = address
@@ -79,25 +78,31 @@ class Controller(object):
             print("No active servers found")
             return False
 
+    # Get node object by ip address
     def getNode(self,address):
         if(address in self.nodes):
             return self.nodes[address]
 
+    # Decide server for next file
     def decideNextServer(self):
         for node in self.nodes:
-            if(self.nodes[node] != self.nextServer):
+            if(node != self.nextServer.address):
                 if(self.nodes[node].active == True):
                     self.nextServer = self.nodes[node]
+                    break
 
+    # Get file directory from its virtual path
     def getFileDirectory(self,virtualPath):
         return str(Path(virtualPath).parent)
 
+    # Get File record from physical path
     def getFileFromReal(self,realPath):
         for file in self.files:
             if(self.files[file].rpath == realPath):
                 return self.files[file]
         return None
 
+    # Record new directory
     def recordDirectory(self,dirName):
         if(dirName in self.directories):
             return
@@ -107,6 +112,7 @@ class Controller(object):
 
         self.commit()
 
+    # Remove directory from records
     def removeDirectory(self,virtualPath):
         if(virtualPath in self.directories):
             for file in self.directories[virtualPath].files:
@@ -118,19 +124,21 @@ class Controller(object):
 
             self.commit()
 
+    # Record a new file
     def recordFile(self,virtualPath):
         fileDirectory = self.getFileDirectory(virtualPath)
 
+        self.decideNextServer() # Decide node to write
         file = File(virtualPath,self.nextServer)
         self.directories[fileDirectory].files.append(virtualPath)
         self.files[virtualPath] = file
 
         self.commit()
-        print(f"File recorded on server {self.nextServer.address}. ",virtualPath)
-        self.decideNextServer()
 
+        print(f"File {virtualPath} recorded on server {self.nextServer.address}.")
         return file
 
+    # Remove file and unregister record
     def removeFile(self, virtualPath):
         fileDirectory = self.getFileDirectory(virtualPath)
 
@@ -141,7 +149,9 @@ class Controller(object):
         node.getConnection().root.unlink(file.rpath)
 
         self.commit()
+        print(f"File {virtualPath} removed from server {node.address}.")
 
+    # Node migration
     def migrate(self,host):
         # Select new host
         newHost = host
@@ -157,9 +167,10 @@ class Controller(object):
 
         # Send new host ip
         self.getNode(host).getConnection().root.migrate(newHost)
-        self.getNode(newHost).getConnection().root.acceptMigrate()
+        self.getNode(newHost).getConnection().root.acceptMigrate(host)
         self.getNode(host).active = False
 
+    # Load file hiearchy from backup
     def load_commit(self):
         if(os.path.isfile(CONTROL_DATA) == False):
             return
@@ -167,6 +178,7 @@ class Controller(object):
         (self.directories,self.files) = pickle.load(data_file)
         data_file.close()
 
+    # Save file hiearchy
     def commit(self):
         data_file = open(CONTROL_DATA,mode='wb')
         pickle.dump((self.directories,self.files),data_file)

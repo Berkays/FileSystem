@@ -1,0 +1,7 @@
+FROM python:alpine3.6
+COPY . /app
+WORKDIR /app
+RUN pip install rpyc
+RUN mkdir -p /server/data_store
+EXPOSE 18861
+CMD python -u ./server.py

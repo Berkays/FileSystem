@@ -8,46 +8,42 @@ import rpyc
 
 from pathlib import Path
 
-ROOT_DIR = "/home/berkay/client_real/"
-
 class Passthrough(Operations):
-    def __init__(self, controller):
+    def __init__(self, controller,root_dir):
+        self.root = root_dir
         self.controller = controller
 
     def _full_path(self, partial):
         partial = partial.lstrip("/")
-        path = os.path.join(ROOT_DIR, partial)
+        path = os.path.join(self.root, partial)
         return path
 
     # Directory methods
     # ==================
 
     def access(self, path, mode):
-        print("FileSystem method: access\n")
         pass        
 
     def getattr(self, path, fh=None):
-        #print("FileSystem method: getattr\n")
-        
         if(path in self.controller.directories):
             full_path = self._full_path(path)
             st = os.lstat(full_path)
             return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
                                                     'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
-        try:
-            dir = str(Path(path).parent)
-            rpath = self.controller.files[path].rpath
-            print("VIRTUAL PATH: ",path)
-            print("REAL PATH: ",rpath)
-            return self.controller.nextServer.getConnection().root.getattr(rpath,fh)
-        except:
-            full_path = self._full_path(path)
-            st = os.lstat(full_path)
-            return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
+        for node in self.controller.nodes:
+            print(node)
+            try:
+                rpath = self.controller.files[path].rpath
+                return self.controller.getNode(node).getConnection().root.getattr(rpath,fh)
+            except:
+                pass
+        
+        full_path = self._full_path(path)
+        st = os.lstat(full_path)
+        return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
                                                     'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
 
     def readdir(self, path, fh):
-        #print("FileSystem method: readdir\n")
 
         if path in self.controller.directories:
         
@@ -55,6 +51,8 @@ class Passthrough(Operations):
 
             for node in self.controller.nodes:
                 serverFileList = list(self.controller.nodes[node].getConnection().root.readdir("./",fh))
+                print(node)
+                print(serverFileList)
                 for rpath in serverFileList:
                     file = self.controller.getFileFromReal(rpath)
                     if(file is not None):
@@ -74,11 +72,10 @@ class Passthrough(Operations):
                     yield r
             
     def readlink(self, path):
-        print("FileSystem method: readlink\n")
         pathname = os.readlink(path)
         if pathname.startswith("/"):
             # Path name is absolute, sanitize it.
-            return os.path.relpath(pathname, ROOT_DIR)
+            return os.path.relpath(pathname, self.root)
         else:
             return pathname
 
@@ -93,56 +90,49 @@ class Passthrough(Operations):
         return os.mkdir(self._full_path(path),mode)
 
     def unlink(self, path): # File remove
-        print("FileSystem method: unlink\n")
         self.controller.removeFile(path)
 
 
     # File methods
     # ============
+    # Convert virtual path to real path for operations
 
     def open(self, path, flags):
-        print("File method: open\n")
-        #Convert virtual path to real path
         fileRecord = self.controller.files[path]
         node = self.controller.getNode(fileRecord.nodeAddress)
         return node.getConnection().root.open(fileRecord.rpath,flags)
 
     def create(self, path, mode, fi=None):
-        print("File method: create\n")
         fileRecord = self.controller.recordFile(path)
-        return self.controller.nextServer.getConnection().root.create(fileRecord.rpath,mode,fi)
+        node = self.controller.getNode(fileRecord.nodeAddress)
+        return node.getConnection().root.create(fileRecord.rpath,mode,fi)
 
     def read(self, path, length, offset, fh):
-        print("File method: read\n")
         fileRecord = self.controller.files[path]
         node = self.controller.getNode(fileRecord.nodeAddress)
         return node.getConnection().root.read(fileRecord.rpath, length,offset,fh)
 
     def write(self, path, buf, offset, fh):
-        print("File method: write\n")
         fileRecord = self.controller.files[path]
         node = self.controller.getNode(fileRecord.nodeAddress)
         return node.getConnection().root.write(fileRecord.rpath, buf,offset,fh)
 
     def truncate(self, path, length, fh=None):
-        print("File method: truncate\n")
         fileRecord = self.controller.files[path]
         node = self.controller.getNode(fileRecord.nodeAddress)
         node.getConnection().root.truncate(fileRecord.rpath,length,fh)
 
     def flush(self, path, fh):
-        print("File method: flush\n")
-        rpath = self.controller.files[path].rpath
-        return self.controller.nextServer.getConnection().root.flush(rpath, fh)
+        fileRecord = self.controller.files[path]
+        node = self.controller.getNode(fileRecord.nodeAddress)
+        return node.getConnection().root.flush(fileRecord.rpath, fh)
 
     def release(self, path, fh):
-        print("File method: release\n")
         fileRecord = self.controller.files[path]
         node = self.controller.getNode(fileRecord.nodeAddress)
         return node.getConnection().root.release(fileRecord.rpath,fh)
 
     def fsync(self, path, fdatasync, fh):
-        print("File method: fsync\n")
         fileRecord = self.controller.files[path]
         node = self.controller.getNode(fileRecord.nodeAddress)
         return node.getConnection().root.fsync(fileRecord.rpath,fdatasync,fh)

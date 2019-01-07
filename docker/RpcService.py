@@ -90,26 +90,30 @@ class RpcService(rpyc.Service):
         # Transfer all files to newHost
         zipFile = "backup"
         dirPath = str(Path(ROOT_DIR))
+        print("Packing migration data...")
         shutil.make_archive(zipFile, 'zip', dirPath)  # Zip server files
 
         server_socket = socket.socket()
-        server_socket.bind((newHost, 12345))
+        server_socket.bind((newHost, 19000))
         server_socket.listen(5)
         client_socket, addr = server_socket.accept()
+        print("Sending migration data...")
         with open(zipFile + ".zip", 'rb') as f:
             client_socket.sendfile(f, 0)
         client_socket.close()
         
-        # Remove zip
+        # TODO: Remove zip
+        print("Migration complete...")
 
         self.active = False
 
-    def acceptMigrate(self):
+    def acceptMigrate(self,fromHost):
         CHUNK_SIZE = 8 * 1024
         zipFile = self._full_path("backup.zip")
 
         sock = socket.socket()
-        sock.connect(('localhost', 12345))
+        sock.connect((fromHost, 19000))
+        print("Receiving migration data...")
         with open(zipFile,'wb') as f:
 
             chunk = sock.recv(CHUNK_SIZE)
@@ -120,6 +124,8 @@ class RpcService(rpyc.Service):
                     f.write(chunk)
         sock.close()
 
+        print("Unpacking migration data...")
         shutil.unpack_archive(zipFile, extract_dir=ROOT_DIR)
 
-        # Remove zip
+        # TODO: Remove zip
+        print("Migration complete...")

@@ -15,8 +15,18 @@ if __name__ == "__main__":
     if(not hasActiveHost):
         exit(0)
 
+    if(len(sys.argv) >= 2):
+        if(int(sys.argv[1]) == 1):
+            # Remove control layer data
+            try:
+                os.remove("/home/berkay/backup.dat")
+            except:
+                pass
+                
     mntPoint = "/home/berkay/client_virtual/"
-    print(f"Mounting {mntPoint}")
-    FUSE(Passthrough(controller), mntPoint, foreground=True, nothreads=True,allow_other=True)
+    physicalMntPoint = "/home/berkay/client_real/"
+
+    print(f"Mounting {physicalMntPoint} on {mntPoint}")
+    FUSE(Passthrough(controller,physicalMntPoint), mntPoint, foreground=True, nothreads=True,allow_other=True)
     
 

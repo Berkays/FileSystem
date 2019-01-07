@@ -31,7 +31,6 @@ class Passthrough(Operations):
             return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
                                                     'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
         for node in self.controller.nodes:
-            print(node)
             try:
                 rpath = self.controller.files[path].rpath
                 return self.controller.getNode(node).getConnection().root.getattr(rpath,fh)
@@ -51,8 +50,6 @@ class Passthrough(Operations):
 
             for node in self.controller.nodes:
                 serverFileList = list(self.controller.nodes[node].getConnection().root.readdir("./",fh))
-                print(node)
-                print(serverFileList)
                 for rpath in serverFileList:
                     file = self.controller.getFileFromReal(rpath)
                     if(file is not None):

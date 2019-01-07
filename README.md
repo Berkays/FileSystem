@@ -2,6 +2,7 @@
 
 * Docker
 * Python >=3.4
+* Rpyc package (pip install rpyc)
 
 # Docker Installation
 
